@@ -110,7 +110,7 @@
 </main>
 
 <script>
-  var S = { cfg:null, driver:'', pin:'', entity:'', branch:'', photo:'', lat:null, lng:null, acc:null, busy:false };
+  var S = { cfg:null, branches:{}, driver:'', pin:'', entity:'', branch:'', photo:'', lat:null, lng:null, acc:null, busy:false };
   var $ = function (id) { return document.getElementById(id); };
   $('fav').href = $('logo').src;
 
@@ -139,10 +139,13 @@
   /* ---------- البداية ---------- */
   show('جاري التحميل...', true);
   call('getConfig', [], function (cfg) {
-    hideMsg();
     S.cfg = cfg;
     var d = load('driver'), p = load('pin');
-    if (d && p) { S.driver = d; S.pin = p; startForm(); } else { renderLogin(); }
+    if (!d || !p) { hideMsg(); renderLogin(); return; }
+    S.driver = d;
+    call('login', [d, p], function (r) {
+      hideMsg(); S.pin = p; S.branches = r.branches; startForm();
+    }, function (e) { var t = errText(e); if (t.indexOf('الرمز') >= 0) store('pin', null); renderLogin(); show(t); });
   }, function (e) { show(errText(e)); });
 
   function renderLogin() {
@@ -156,24 +159,24 @@
     if (!S.driver) return show('اختر اسمك.');
     if (!pin) return show('اكتب الرمز.');
     $('loginBtn').disabled = true;
-    call('login', [S.driver, pin], function () {
-      $('loginBtn').disabled = false; S.pin = pin; store('driver', S.driver); store('pin', pin); hideMsg(); startForm();
+    call('login', [S.driver, pin], function (r) {
+      S.branches = r.branches; $('loginBtn').disabled = false; S.pin = pin; store('driver', S.driver); store('pin', pin); hideMsg(); startForm();
     }, function (e) { $('loginBtn').disabled = false; show(errText(e)); });
   };
 
-  $('logout').onclick = function () { store('driver', null); store('pin', null); S.pin = ''; $('pin').value = ''; renderLogin(); };
+  $('logout').onclick = function () { store('driver', null); store('pin', null); S.pin = ''; S.entity = ''; S.branch = ''; S.branches = {}; $('pin').value = ''; renderLogin(); };
 
   function startForm() {
     $('loginView').classList.add('hidden'); $('formView').classList.remove('hidden'); $('logout').classList.remove('hidden');
     $('hello').textContent = 'هلا ' + S.driver;
-    if (!S.entity) S.entity = load('entity') || Object.keys(S.cfg.branches)[0];
+    if (!S.branches[S.entity]) { var e = load('entity'); S.entity = (e && S.branches[e]) ? e : Object.keys(S.branches)[0]; S.branch = ''; }
     renderEntities(); renderBranches(); locate(); loadToday();
   }
 
   /* ---------- الجهة والفرع ---------- */
   function renderEntities() {
     var box = $('entityChips'); box.innerHTML = '';
-    Object.keys(S.cfg.branches).forEach(function (en) {
+    Object.keys(S.branches).forEach(function (en) {
       box.appendChild(chip(en, en === S.entity, function () { S.entity = en; S.branch = ''; store('entity', en); renderEntities(); renderBranches(); }));
     });
   }
@@ -191,7 +194,7 @@
     $('branchPick').classList.toggle('hidden', chosen);
     if (chosen) { $('branchChosen').textContent = S.entity + ' — ' + S.branch; return; }
     var q = $('branchSearch').value.trim();
-    var all = S.cfg.branches[S.entity] || [];
+    var all = S.branches[S.entity] || [];
     var rec = recents().filter(function (x) { return x[0] === S.entity; }).map(function (x) { return x[1]; }).filter(function (b) { return all.indexOf(b) >= 0; });
     var order = rec.concat(all.filter(function (b) { return rec.indexOf(b) < 0; }));
     var list = $('branchList'); list.innerHTML = '';
