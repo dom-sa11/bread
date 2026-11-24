@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  :root { --bg:#f4f1ea; --card:#fff; --ink:#1d1b16; --muted:#6b665c; --line:#e3ddd0; --brand:#b5651d; --brand-ink:#fff; --ok:#1f7a4a; --bad:#b42318; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.6 -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  header { background:var(--brand); color:var(--brand-ink); padding:14px 16px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:19px; flex:1; }
+  header button { background:transparent; color:inherit; border:1px solid rgba(255,255,255,.6); border-radius:8px; padding:4px 10px; font:inherit; font-size:14px; }
+  main { max-width:520px; margin:0 auto; padding:14px 16px 60px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; }
+  .step { font-size:14px; color:var(--muted); margin:0 0 8px; font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line); background:#faf8f3; border-radius:999px; padding:8px 14px; font:inherit; font-size:16px; color:var(--ink); }
+  .chip.on { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
+  input[type=text], input[type=search], input[type=password], input[type=number] { width:100%; font:inherit; font-size:20px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .list { max-height:260px; overflow-y:auto; margin-top:8px; border:1px solid var(--line); border-radius:10px; }
+  .list button { display:block; width:100%; text-align:right; border:0; border-bottom:1px solid var(--line); background:#fff; padding:12px; font:inherit; color:var(--ink); }
+  .list button:last-child { border-bottom:0; }
+  .list .rec { background:#fdf4ea; }
+  .chosen { font-size:20px; font-weight:700; }
+  .big { width:100%; font:inherit; font-size:20px; font-weight:700; border:0; border-radius:12px; padding:16px; background:var(--brand); color:var(--brand-ink); }
+  .big:disabled { opacity:.5; }
+  .ghost { width:100%; font:inherit; font-size:17px; border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff; color:var(--ink); }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  #preview { width:100%; border-radius:10px; margin-top:10px; display:none; }
+  .msg { padding:12px; border-radius:10px; margin-bottom:14px; font-weight:600; display:none; }
+  .msg.ok { background:#e5f4ec; color:var(--ok); display:block; }
+  .msg.bad { background:#fdeceb; color:var(--bad); display:block; }
+  .muted { color:var(--muted); font-size:14px; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  td, th { padding:6px 4px; border-bottom:1px solid var(--line); text-align:right; }
+  .hidden { display:none !important; }
+  label.check { display:flex; align-items:center; gap:10px; font-size:18px; margin-top:12px; }
+  label.check input { width:24px; height:24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>إدخال كميات الخبز</h1>
+  <button id="logout" class="hidden" type="button">خروج</button>
+</header>
+<main>
+  <div id="msg" class="msg"></div>
+
+  <!-- الدخول -->
+  <section id="loginView" class="card hidden">
+    <p class="step">اختر اسمك</p>
+    <div id="driverChips" class="chips"></div>
+    <p class="step" style="margin-top:14px">الرمز</p>
+    <input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+    <div style="height:12px"></div>
+    <button id="loginBtn" class="big" type="button">دخول</button>
+  </section>
+
+  <!-- الإدخال -->
+  <section id="formView" class="hidden">
+    <p class="muted" id="hello"></p>
+
+    <div class="card">
+      <p class="step">١. الجهة</p>
+      <div id="entityChips" class="chips"></div>
+    </div>
+
+    <div class="card">
+      <p class="step">٢. الفرع</p>
+      <div id="branchChosen" class="chosen hidden"></div>
+      <button id="branchChange" class="ghost hidden" type="button" style="margin-top:8px">غيّر الفرع</button>
+      <div id="branchPick">
+        <input id="branchSearch" type="search" placeholder="ابحث عن الفرع">
+        <div id="branchList" class="list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="step">٣. صورة الميزان</p>
+      <button id="camBtn" class="big" type="button">📷 صوّر الميزان</button>
+      <input id="cam" type="file" accept="image/*" capture="environment" class="hidden">
+      <img id="preview" alt="">
+      <p class="muted" id="locStatus">جاري تحديد الموقع...</p>
+    </div>
+
+    <div class="card">
+      <p class="step">٤. الكمية بالكيلو</p>
+      <input id="kg" type="text" inputmode="decimal" placeholder="مثال: 23.5" autocomplete="off">
+      <label class="check"><input id="noBread" type="checkbox"> ما في خبز في هذا الفرع</label>
+    </div>
+
+    <button id="sendBtn" class="big" type="button">إرسال</button>
+
+    <div id="afterSend" class="row hidden" style="margin-top:12px">
+      <button id="sameBranch" class="ghost" type="button">كيس ثاني لنفس الفرع</button>
+      <button id="newBranch" class="ghost" type="button">فرع جديد</button>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <p class="step">إدخالاتك اليوم</p>
+      <div id="today" class="muted">—</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  var S = { cfg:null, driver:'', pin:'', entity:'', branch:'', photo:'', lat:null, lng:null, acc:null, busy:false };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function show(t, ok) { var m = $('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'bad'); window.scrollTo(0, 0); }
+  function hideMsg() { $('msg').className = 'msg'; }
+  function toLatin(s) { return String(s || '').replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٫,]/g, '.').trim(); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function errText(e) { return (e && e.message ? e.message : String(e)).replace(/^Exception:\s*/, ''); }
+
+  /* داخل Google يستخدم google.script.run، وبرّا (GitHub Pages) يرسل للرابط مباشرة */
+  var API = 'https://script.google.com/macros/s/AKfycbxSRxbppStRDrGPnBs3vPhaYrJiaPx2Bp715mIVjNTvGaFsx7BQZoQi2mMI-obOPsM/exec';
+  function call(fn, args, ok, fail) {
+    if (window.google && google.script && google.script.run) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(fail); r[fn].apply(r, args); return;
+    }
+    fetch(API, { method:'POST', body:JSON.stringify({ fn:fn, args:args }) })
+      .then(function (res) { return res.json(); })
+      .then(function (j) { if (j.ok) ok(j.result); else fail(new Error(j.error)); })
+      .catch(function () { fail(new Error('ما فيه اتصال. تأكد من الإنترنت وحاول مرة ثانية.')); });
+  }
+
+  function chip(text, on, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; return b; }
+
+  /* ---------- البداية ---------- */
+  show('جاري التحميل...', true);
+  call('getConfig', [], function (cfg) {
+    hideMsg();
+    S.cfg = cfg;
+    var d = load('driver'), p = load('pin');
+    if (d && p) { S.driver = d; S.pin = p; startForm(); } else { renderLogin(); }
+  }, function (e) { show(errText(e)); });
+
+  function renderLogin() {
+    $('loginView').classList.remove('hidden'); $('formView').classList.add('hidden'); $('logout').classList.add('hidden');
+    var box = $('driverChips'); box.innerHTML = '';
+    S.cfg.drivers.forEach(function (n) { box.appendChild(chip(n, n === S.driver, function () { S.driver = n; renderLogin(); })); });
+  }
+
+  $('loginBtn').onclick = function () {
+    var pin = toLatin($('pin').value);
+    if (!S.driver) return show('اختر اسمك.');
+    if (!pin) return show('اكتب الرمز.');
+    $('loginBtn').disabled = true;
+    call('login', [S.driver, pin], function () {
+      $('loginBtn').disabled = false; S.pin = pin; store('driver', S.driver); store('pin', pin); hideMsg(); startForm();
+    }, function (e) { $('loginBtn').disabled = false; show(errText(e)); });
+  };
+
+  $('logout').onclick = function () { store('driver', null); store('pin', null); S.pin = ''; $('pin').value = ''; renderLogin(); };
+
+  function startForm() {
+    $('loginView').classList.add('hidden'); $('formView').classList.remove('hidden'); $('logout').classList.remove('hidden');
+    $('hello').textContent = 'هلا ' + S.driver;
+    if (!S.entity) S.entity = load('entity') || Object.keys(S.cfg.branches)[0];
+    renderEntities(); renderBranches(); locate(); loadToday();
+  }
+
+  /* ---------- الجهة والفرع ---------- */
+  function renderEntities() {
+    var box = $('entityChips'); box.innerHTML = '';
+    Object.keys(S.cfg.branches).forEach(function (en) {
+      box.appendChild(chip(en, en === S.entity, function () { S.entity = en; S.branch = ''; store('entity', en); renderEntities(); renderBranches(); }));
+    });
+  }
+
+  function recents() { try { return JSON.parse(load('recent_' + S.driver) || '[]'); } catch (e) { return []; } }
+  function addRecent(en, br) {
+    var r = recents().filter(function (x) { return !(x[0] === en && x[1] === br); });
+    r.unshift([en, br]); store('recent_' + S.driver, JSON.stringify(r.slice(0, 40)));
+  }
+
+  function renderBranches() {
+    var chosen = !!S.branch;
+    $('branchChosen').classList.toggle('hidden', !chosen);
+    $('branchChange').classList.toggle('hidden', !chosen);
+    $('branchPick').classList.toggle('hidden', chosen);
+    if (chosen) { $('branchChosen').textContent = S.entity + ' — ' + S.branch; return; }
+    var q = $('branchSearch').value.trim();
+    var all = S.cfg.branches[S.entity] || [];
+    var rec = recents().filter(function (x) { return x[0] === S.entity; }).map(function (x) { return x[1]; }).filter(function (b) { return all.indexOf(b) >= 0; });
+    var order = rec.concat(all.filter(function (b) { return rec.indexOf(b) < 0; }));
+    var list = $('branchList'); list.innerHTML = '';
+    order.filter(function (b) { return !q || b.indexOf(q) >= 0; }).forEach(function (b) {
+      var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = b;
+      if (rec.indexOf(b) >= 0) btn.className = 'rec';
+      btn.onclick = function () { S.branch = b; $('branchSearch').value = ''; renderBranches(); };
+      list.appendChild(btn);
+    });
+    if (!list.children.length) list.innerHTML = '<div class="muted" style="padding:12px">ما فيه فرع بهالاسم</div>';
+  }
+  $('branchSearch').oninput = renderBranches;
+  $('branchChange').onclick = function () { S.branch = ''; renderBranches(); };
+
+  /* ---------- الصورة ---------- */
+  $('camBtn').onclick = function () { $('cam').click(); };
+  $('cam').onchange = function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var img = new Image(), url = URL.createObjectURL(f);
+    img.onload = function () {
+      var max = 1400, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, max / Math.max(w, h));
+      var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      S.photo = c.toDataURL('image/jpeg', 0.8);
+      $('preview').src = S.photo; $('preview').style.display = 'block';
+      $('camBtn').textContent = '📷 صوّر مرة ثانية';
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    locate();
+  };
+
+  /* ---------- الموقع ---------- */
+  function locate() {
+    if (!navigator.geolocation) { $('locStatus').textContent = 'الموقع غير متاح في هذا الجوال.'; return; }
+    navigator.geolocation.getCurrentPosition(function (p) {
+      S.lat = p.coords.latitude; S.lng = p.coords.longitude; S.acc = p.coords.accuracy;
+      $('locStatus').textContent = 'تم تحديد الموقع ✓';
+    }, function () {
+      $('locStatus').textContent = 'ما قدرنا نحدد الموقع. فعّل الموقع للمتصفح لو سمحت.';
+    }, { enableHighAccuracy:true, timeout:15000, maximumAge:60000 });
+  }
+
+  /* ---------- الإرسال ---------- */
+  $('noBread').onchange = function () { $('kg').disabled = this.checked; if (this.checked) $('kg').value = ''; };
+
+  function send(confirmBig) {
+    if (S.busy) return;
+    var noBread = $('noBread').checked;
+    var kg = toLatin($('kg').value);
+    if (!S.branch) return show('اختر الفرع.');
+    if (!noBread) {
+      if (!S.photo) return show('صوّر الميزان أول.');
+      if (!(Number(kg) > 0)) return show('اكتب الكمية بالكيلو.');
+    }
+    S.busy = true; $('sendBtn').disabled = true; $('sendBtn').textContent = 'جاري الإرسال...';
+    var payload = { driver:S.driver, pin:S.pin, entity:S.entity, branch:S.branch, kg:noBread ? '' : kg, noBread:noBread,
+      photo:S.photo, lat:S.lat, lng:S.lng, acc:S.acc, clientTime:new Date().toISOString(), submissionId:S.sid || (S.sid = uid()), confirmBig:!!confirmBig };
+    call('submit', [payload], function (r) {
+      S.busy = false; S.sid = null; $('sendBtn').disabled = false; $('sendBtn').textContent = 'إرسال';
+      addRecent(S.entity, S.branch);
+      show('تم الإرسال ✓ ' + S.branch + (noBread ? ' (ما في خبز)' : ' — ' + kg + ' كجم') + (r && r.duplicate ? ' — تنبيه: نفس صورة سابقة' : ''), true);
+      S.photo = ''; $('preview').style.display = 'none'; $('camBtn').textContent = '📷 صوّر الميزان';
+      $('kg').value = ''; $('noBread').checked = false; $('kg').disabled = false; $('cam').value = '';
+      $('afterSend').classList.remove('hidden');
+      loadToday();
+    }, function (e) {
+      S.busy = false; $('sendBtn').disabled = false; $('sendBtn').textContent = 'إرسال';
+      var t = errText(e);
+      if (t === 'BIG') { if (confirm('الكمية ' + kg + ' كجم كبيرة. متأكد منها؟')) send(true); return; }
+      if (t.indexOf('الرمز') >= 0) { store('pin', null); }
+      show('ما انرسل: ' + t + ' — حاول مرة ثانية.');
+    });
+  }
+  $('sendBtn').onclick = function () { send(false); };
+
+  $('sameBranch').onclick = function () { $('afterSend').classList.add('hidden'); hideMsg(); $('camBtn').scrollIntoView({ behavior:'smooth' }); };
+  $('newBranch').onclick = function () { $('afterSend').classList.add('hidden'); hideMsg(); S.branch = ''; renderBranches(); window.scrollTo(0, 0); };
+
+  /* ---------- إدخالات اليوم ---------- */
+  function loadToday() {
+    call('getToday', [S.driver, S.pin], function (rows) {
+      var box = $('today');
+      if (!rows.length) { box.textContent = 'ما فيه إدخالات للحين.'; return; }
+      var total = 0, t = document.createElement('table');
+      t.innerHTML = '<tr><th>الساعة</th><th>الفرع</th><th>كجم</th></tr>';
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        [r.time, r.branch, r.noBread ? 'ما في خبز' : r.kg].forEach(function (v) { var td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        t.appendChild(tr); if (!r.noBread) total += Number(r.kg) || 0;
+      });
+      box.innerHTML = ''; box.appendChild(t);
+      var p = document.createElement('p'); p.style.fontWeight = '700'; p.textContent = 'المجموع: ' + Math.round(total * 1000) / 1000 + ' كجم (' + rows.length + ' إدخال)';
+      box.appendChild(p);
+    }, function () {});
+  }
+</script>
+</body>
+</html>
